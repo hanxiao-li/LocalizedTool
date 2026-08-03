@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>北京时间</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #0c0f1d 0%, #1a1f35 50%, #0f1225 100%);
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            color: #fff;
+        }
+
+        .clock-container {
+            text-align: center;
+            padding: 60px 80px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+        }
+
+        .label {
+            font-size: 18px;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+
+        .time {
+            font-size: 96px;
+            font-weight: 200;
+            letter-spacing: 4px;
+            font-variant-numeric: tabular-nums;
+            font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'PingFang SC', monospace;
+            color: #e8eaed;
+        }
+
+        .seconds {
+            font-size: 48px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .date {
+            font-size: 20px;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.45);
+            margin-top: 16px;
+            letter-spacing: 2px;
+        }
+
+        .timezone-badge {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 6px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 400;
+            letter-spacing: 2px;
+            color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="clock-container">
+        <div class="label">北京时间</div>
+        <div class="time">
+            <span id="hours">00</span>:<span id="minutes">00</span>:<span class="seconds" id="seconds">00</span>
+        </div>
+        <div class="date" id="date"></div>
+        <div class="timezone-badge">UTC+8 &middot; CST</div>
+    </div>
+
+    <script>
+        function updateClock() {
+            const now = new Date();
+
+            // 北京时间 = UTC + 8
+            const beijingTime = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + 8 * 3600000);
+
+            const hh = String(beijingTime.getHours()).padStart(2, '0');
+            const mm = String(beijingTime.getMinutes()).padStart(2, '0');
+            const ss = String(beijingTime.getSeconds()).padStart(2, '0');
+
+            const year = beijingTime.getFullYear();
+            const month = String(beijingTime.getMonth() + 1).padStart(2, '0');
+            const day = String(beijingTime.getDate()).padStart(2, '0');
+
+            const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            const weekday = weekdays[beijingTime.getDay()];
+
+            document.getElementById('hours').textContent = hh;
+            document.getElementById('minutes').textContent = mm;
+            document.getElementById('seconds').textContent = ss;
+            document.getElementById('date').textContent = `${year}年${month}月${day}日 ${weekday}`;
+        }
+
+        updateClock();
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>
