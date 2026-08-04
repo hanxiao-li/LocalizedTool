@@ -1,0 +1,11 @@
+flask>=3.0.0
+pandas>=2.0.0
+openpyxl>=3.1.0
+requests>=2.31.0
+cryptography>=41.0.0
+spylls>=0.1.0
+english_words>=1.1.0
+babel>=2.13.0
+words2num2>=0.3.0
+text2num>=3.0.0
+pytest>=8.0.0

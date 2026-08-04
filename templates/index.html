@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LocalizedTool - 游戏本地化流程工具</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="brand">🌐 LocalizedTool</span>
+  </div>
+  <div class="topbar-center">
+    <label class="topbar-label" for="projectSelect">项目</label>
+    <select id="projectSelect" class="select"></select>
+  </div>
+  <div class="topbar-right">
+    <span id="userBadge" class="user-badge"></span>
+    <button class="btn btn-outline btn-sm" id="btnSettings">⚙️ 设置</button>
+    <button class="btn btn-outline btn-sm" id="btnLogout">退出</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="extract">📤 术语提取</button>
+  <button class="tab" data-tab="translate">🌐 模型翻译</button>
+  <button class="tab" data-tab="check">🔍 翻译校验</button>
+</nav>
+
+<main class="container">
+  <div class="card" id="noProjectNotice" hidden>
+    <div class="card-body banner-warn">
+      ℹ️ 请先在右上角选择一个项目，才能开始操作。
+    </div>
+  </div>
+
+  <!-- ===================== 术语提取 ===================== -->
+  <section id="tab-extract" class="tab-panel active">
+    <div class="card">
+      <div class="card-head">📤 术语提取</div>
+      <div class="card-body">
+        <p class="muted">上传包含中文（简体）源文本的 Excel，自动识别中文列后，由大模型自动提取专有名词/术语。</p>
+        <div class="row">
+          <div class="col">
+            <label class="lbl">Excel 文件 (.xlsx/.xls)</label>
+            <input type="file" id="extractFile" class="input" accept=".xlsx,.xls">
+          </div>
+          <div class="col">
+            <label class="lbl">源语言列（自动识别中文）</label>
+            <div class="muted" id="extractSourceInfo" style="padding-top:9px">-- 上传文件后自动识别 --</div>
+          </div>
+          <div class="col-auto">
+            <label class="lbl">&nbsp;</label>
+            <button class="btn btn-primary" id="btnExtractUpload">上传文件</button>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <div class="col-auto">
+            <button class="btn btn-accent" id="btnExtractStart">开始提取术语</button>
+          </div>
+          <div class="col">
+            <div class="muted" id="extractUploadInfo"></div>
+          </div>
+        </div>
+        <div class="progress-wrap" id="extractProgress" hidden>
+          <div class="progress"><div class="bar" id="extractBar" style="width:0%">0%</div></div>
+          <div class="progress-phase" id="extractPhase"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="extractResultCard" hidden>
+      <div class="card-head">候选术语
+        <span class="badge" id="extractCount"></span>
+        <span class="spacer"></span>
+        <button class="btn btn-outline btn-sm" id="btnTermsConfirmAll">批量确认选中</button>
+        <button class="btn btn-outline btn-sm" id="btnTermsDeselectAll">取消全选</button>
+      </div>
+      <div class="card-body">
+        <p class="muted">勾选确认为术语的条目（默认全选），确认后写入项目术语库。未确认的条目可忽略。</p>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr>
+              <th style="width:44px"><input type="checkbox" id="termsCheckAll" checked></th>
+              <th>术语</th><th style="width:80px">出现</th><th>来源示例</th>
+            </tr></thead>
+            <tbody id="termsBody"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-primary" id="btnTermsConfirm">确认写入术语库</button>
+        <span class="muted" id="termsConfirmInfo"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">📚 项目术语库
+        <span class="spacer"></span>
+        <button class="btn btn-outline btn-sm" id="btnGlossaryDownload">下载术语库</button>
+        <button class="btn btn-outline btn-sm" id="btnGlossaryUpload">上传覆盖</button>
+      </div>
+      <div class="card-body">
+        <p class="muted">术语库格式：ID（自增）| 源语言列 | 各语种列。上传覆盖不可还原，请谨慎操作。</p>
+        <div class="table-wrap">
+          <table class="table">
+            <thead id="glossaryHead"><tr></tr></thead>
+            <tbody id="glossaryBody"></tbody>
+          </table>
+        </div>
+        <div class="muted" id="glossaryInfo"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 模型翻译 ===================== -->
+  <section id="tab-translate" class="tab-panel">
+    <div class="card" id="termBanner" hidden>
+      <div class="card-body banner-warn">
+        ⚠️ 当前有 <strong id="termBannerCount">0</strong> 条术语尚未完成全语种翻译。
+        <button class="btn btn-accent btn-sm" id="btnOpenTermModal">去翻译术语</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">🌐 批量翻译</div>
+      <div class="card-body">
+        <p class="muted">上传翻译文件，勾选目标语种进行翻译。每个语种的源语言列由项目配置自动匹配（中文源语种取中文列，英文源语种取 English 列），无需手动选择。</p>
+        <div class="row">
+          <div class="col">
+            <label class="lbl">Excel 文件 (.xlsx/.xls)</label>
+            <input type="file" id="translateFile" class="input" accept=".xlsx,.xls">
+          </div>
+          <div class="col-auto">
+            <label class="lbl">&nbsp;</label>
+            <button class="btn btn-primary" id="btnTranslateUpload">上传文件</button>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <div class="col"><div class="muted" id="translateUploadInfo"></div></div>
+        </div>
+
+        <div id="targetConfig" hidden>
+          <div class="banner-warn banner-strong" id="translateColumnWarn" hidden></div>
+          <h4 class="section-title">目标语种配置</h4>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr>
+                <th style="width:40px"></th>
+                <th>目标语种</th>
+                <th>源列（自动识别）</th>
+                <th>字符上限列（可选）</th>
+              </tr></thead>
+              <tbody id="targetRows"></tbody>
+            </table>
+          </div>
+          <button class="btn btn-accent" id="btnTranslateStart">开始翻译</button>
+          <span class="muted" id="translateStartInfo"></span>
+        </div>
+
+        <div class="progress-wrap" id="translateProgress" hidden>
+          <div class="progress"><div class="bar" id="translateBar" style="width:0%">0%</div></div>
+          <div class="progress-phase" id="translatePhase"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="translateResultCard" hidden>
+      <div class="card-head">翻译结果
+        <span class="spacer"></span>
+        <button class="btn btn-outline btn-sm" id="btnTranslateDownload">📥 下载全量 Excel</button>
+        <button class="btn btn-accent btn-sm" id="btnGoCheck">校验翻译结果</button>
+      </div>
+      <div class="card-body">
+        <p class="muted" id="translateResultInfo"></p>
+        <div class="table-wrap">
+          <table class="table">
+            <thead id="translateResultHead"><tr></tr></thead>
+            <tbody id="translateResultBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 翻译校验 ===================== -->
+  <section id="tab-check" class="tab-panel">
+    <div class="card">
+      <div class="card-head">🔍 翻译校验</div>
+      <div class="card-body">
+        <p class="muted">上传翻译后的 Excel（或从翻译页跳转），勾选要校验的语种，系统按项目配置自动匹配源/目标列，结合项目术语库进行 9 项检查。</p>
+        <div class="row">
+          <div class="col">
+            <label class="lbl">Excel 文件 (.xlsx/.xls)</label>
+            <input type="file" id="checkFile" class="input" accept=".xlsx,.xls">
+          </div>
+          <div class="col">
+            <label class="lbl">校验方式</label>
+            <div class="muted" id="checkSourceInfo" style="padding-top:9px">勾选语种，源/目标列自动识别</div>
+          </div>
+          <div class="col-auto">
+            <label class="lbl">&nbsp;</label>
+            <button class="btn btn-primary" id="btnCheckUpload">上传文件</button>
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <div class="col"><div class="muted" id="checkUploadInfo"></div></div>
+        </div>
+
+        <div id="checkConfig" hidden>
+          <div class="banner-warn banner-strong" id="checkColumnWarn" hidden></div>
+          <h4 class="section-title">校验语种（源/目标列自动识别）</h4>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr>
+                <th style="width:40px"></th>
+                <th>校验语种</th>
+                <th>源列 / 目标列（自动识别）</th>
+                <th>字符上限列（可选）</th>
+              </tr></thead>
+              <tbody id="checkPairRows"></tbody>
+            </table>
+          </div>
+          <h4 class="section-title">检查项</h4>
+          <div class="checks" id="checkToggles">
+            <label class="chk"><input type="checkbox" data-check="completeness" checked>翻译语言空/他语种</label>
+            <label class="chk"><input type="checkbox" data-check="placeholder" checked>占位符/标签</label>
+            <label class="chk"><input type="checkbox" data-check="punctuation" checked>标点规范</label>
+            <label class="chk"><input type="checkbox" data-check="length" checked>长度限制</label>
+            <label class="chk"><input type="checkbox" data-check="terminology" checked>术语一致性</label>
+            <label class="chk"><input type="checkbox" data-check="numbers" checked>数字一致性</label>
+            <label class="chk"><input type="checkbox" data-check="escape" checked>转义符</label>
+            <label class="chk"><input type="checkbox" data-check="whitespace" checked>首尾空格</label>
+            <label class="chk"><input type="checkbox" data-check="spell" checked>拼写检查</label>
+          </div>
+          <button class="btn btn-accent" id="btnCheckStart">开始校验</button>
+          <span class="muted" id="checkStartInfo"></span>
+        </div>
+
+        <div class="progress-wrap" id="checkProgress" hidden>
+          <div class="progress"><div class="bar" id="checkBar" style="width:0%">0%</div></div>
+          <div class="progress-phase" id="checkPhase"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="checkResultCard" hidden>
+      <div class="card-head">校验结果
+        <span class="spacer"></span>
+        <button class="btn btn-outline btn-sm" id="btnCheckDownload">📥 下载完整结果</button>
+      </div>
+      <div class="card-body" id="checkSummary"></div>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr>
+            <th>行</th><th>目标语种</th><th>检查项</th><th>严重性</th>
+            <th>问题</th><th>详情</th><th>源文本</th><th>目标文本</th>
+          </tr></thead>
+          <tbody id="checkBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===================== 设置弹窗 ===================== -->
+<div class="modal-mask" id="modalSettings" hidden>
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <span>⚙️ 设置</span>
+      <button class="modal-close" data-close="modalSettings">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="tabs-inline" id="settingsTabs">
+        <button class="tab-inline active" data-stab="llm">大模型</button>
+        <button class="tab-inline" data-stab="account">🔑 账号</button>
+        <button class="tab-inline" data-stab="admin" id="settingsAdminTab" hidden>用户与项目</button>
+      </div>
+
+      <div class="stab-panel" id="stab-llm">
+        <p class="muted">配置你自己的大模型（OpenAI 兼容协议），保存后可测试连接。</p>
+        <label class="lbl">Base URL（如 https://api.openai.com/v1 或 https://api.deepseek.com/v1）</label>
+        <input type="text" id="llmBaseUrl" class="input" placeholder="https://api.xxx.com/v1">
+        <label class="lbl">模型名称（如 gpt-4o / deepseek-chat）</label>
+        <input type="text" id="llmModel" class="input" placeholder="model-name">
+        <label class="lbl">API Key / Token</label>
+        <div class="row">
+          <div class="col"><input type="password" id="llmApiKey" class="input" placeholder="sk-..." autocomplete="off"></div>
+          <div class="col-auto"><button class="btn btn-outline" id="btnTestLlm">测试连接</button></div>
+        </div>
+        <div class="muted" id="llmTestInfo"></div>
+        <button class="btn btn-primary" id="btnSaveLlm">保存设置</button>
+      </div>
+
+      <div class="stab-panel" id="stab-account" hidden>
+        <p class="muted">修改登录密码。</p>
+        <label class="lbl">当前密码</label>
+        <input type="password" id="pwOld" class="input" autocomplete="current-password">
+        <label class="lbl">新密码（至少 6 位）</label>
+        <input type="password" id="pwNew" class="input" autocomplete="new-password">
+        <label class="lbl">确认新密码</label>
+        <input type="password" id="pwNew2" class="input" autocomplete="new-password">
+        <div class="row" style="margin-top:10px">
+          <div class="col-auto"><button class="btn btn-primary" id="btnChangePassword">修改密码</button></div>
+          <div class="col"><div class="muted" id="pwInfo"></div></div>
+        </div>
+      </div>
+
+      <div class="stab-panel" id="stab-admin" hidden>
+        <div class="tabs-inline" id="adminTabs">
+          <button class="tab-inline active" data-atab="users">👤 用户管理</button>
+          <button class="tab-inline" data-atab="projects">📁 项目管理</button>
+        </div>
+        <div class="admin-block" id="adminUsersBlock">
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>ID</th><th>用户名</th><th>管理员</th><th>项目权限</th><th>操作</th></tr></thead>
+              <tbody id="adminUsersBody"></tbody>
+            </table>
+          </div>
+          <button class="btn btn-outline btn-sm" id="btnAddUser">+ 新建用户</button>
+        </div>
+        <div class="admin-block" id="adminProjectsBlock" hidden>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>ID</th><th>项目名</th><th>源列</th><th>语种</th><th>操作</th></tr></thead>
+              <tbody id="adminProjectsBody"></tbody>
+            </table>
+          </div>
+          <button class="btn btn-outline btn-sm" id="btnAddProject">+ 新建项目</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 新建用户弹窗 ===================== -->
+<div class="modal-mask" id="modalNewUser" hidden>
+  <div class="modal">
+    <div class="modal-head"><span>新建用户</span><button class="modal-close" data-close="modalNewUser">×</button></div>
+    <div class="modal-body">
+      <label class="lbl">用户名</label><input type="text" id="nuUsername" class="input">
+      <label class="lbl">密码</label><input type="password" id="nuPassword" class="input">
+      <label class="chk"><input type="checkbox" id="nuIsAdmin"> 管理员</label>
+      <label class="lbl">分配项目权限</label>
+      <div id="nuProjects" class="chk-group"></div>
+      <button class="btn btn-primary" id="btnNuSave">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 新建项目弹窗 ===================== -->
+<div class="modal-mask" id="modalNewProject" hidden>
+  <div class="modal">
+    <div class="modal-head"><span id="modalNewProjectTitle">新建项目</span><button class="modal-close" data-close="modalNewProject">×</button></div>
+    <div class="modal-body">
+      <label class="lbl">项目名称</label><input type="text" id="npName" class="input">
+      <label class="lbl">源语言列名（术语库第2列，固定）</label>
+      <div class="muted" style="padding-top:4px">中文(简体) — 项目源语言固定为中文，各目标语种可设置源为中文/英文</div>
+      <label class="lbl">说明</label><input type="text" id="npDesc" class="input">
+      <h4 class="section-title">目标语种（固定）</h4>
+      <div id="npLangRows"></div>
+      <button class="btn btn-outline btn-sm" id="btnNpAddLang">+ 添加语种</button>
+      <button class="btn btn-primary" id="btnNpSave">创建项目</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 术语翻译弹窗 ===================== -->
+<div class="modal-mask" id="modalTermTranslate" hidden>
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <span>术语翻译（未全语种翻译的术语）</span>
+      <button class="modal-close" data-close="modalTermTranslate">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="muted" id="termModalInfo"></p>
+      <button class="btn btn-accent" id="btnTermTranslateRun">调用大模型翻译</button>
+      <div class="progress-wrap" id="termProgress" hidden>
+        <div class="progress"><div class="bar" id="termBar" style="width:0%">0%</div></div>
+        <div class="progress-phase" id="termPhase"></div>
+      </div>
+      <div class="table-wrap" id="termTableWrap" hidden>
+        <table class="table">
+          <thead id="termTableHead"><tr></tr></thead>
+          <tbody id="termTableBody"></tbody>
+        </table>
+      </div>
+      <button class="btn btn-primary" id="btnTermConfirmAll" hidden>批量同意并保存</button>
+      <span class="muted" id="termSaveInfo"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 术语库覆盖确认弹窗 ===================== -->
+<div class="modal-mask" id="modalGlossaryOverwrite" hidden>
+  <div class="modal modal-sm">
+    <div class="modal-head"><span>覆盖术语库</span><button class="modal-close" data-close="modalGlossaryOverwrite">×</button></div>
+    <div class="modal-body">
+      <div class="confirm-danger">
+        你正在用 <strong id="goFileName"></strong> 覆盖当前项目的术语库。<br>
+        <strong>覆盖后无法还原！</strong> 请确认。
+      </div>
+      <div class="glossary-diff" id="glossaryDiff"><span class="muted">正在比对...</span></div>
+      <input type="file" id="glossaryFile" class="input" accept=".xlsx,.xls" hidden>
+      <div class="row" style="margin-top:12px">
+        <div class="col"><button class="btn btn-outline" data-close="modalGlossaryOverwrite">取消</button></div>
+        <div class="col"><button class="btn btn-danger" id="btnGoConfirm">确认覆盖</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 任务失败弹窗 ===================== -->
+<div class="modal-mask" id="modalTaskError" hidden>
+  <div class="modal modal-sm">
+    <div class="modal-head">
+      <span>⚠️ 任务失败</span>
+      <button class="modal-close" data-close="modalTaskError">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="confirm-danger" id="taskErrorText"></div>
+      <p class="muted">可在下方重试，或检查大模型配置/上传文件后重新操作。</p>
+      <button class="btn btn-primary" data-close="modalTaskError">我知道了</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/main.js"></script>
+<script>App.init();</script>
+</body>
+</html>

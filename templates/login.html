@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 - LocalizedTool</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="login-body">
+  <div class="login-card">
+    <div class="login-brand">🌐 LocalizedTool</div>
+    <p class="login-sub">游戏本地化流程工具 · 术语提取 / 模型翻译 / 翻译校验</p>
+    <form id="loginForm" class="login-form">
+      <div class="field">
+        <label for="username">用户名</label>
+        <input type="text" id="username" name="username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">密码</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+      </div>
+      <div id="loginError" class="login-error" hidden></div>
+      <button type="submit" class="btn btn-primary btn-block">登 录</button>
+    </form>
+    <p class="login-hint">首次使用请用管理员账号登录：admin / admin123</p>
+  </div>
+<script src="/static/js/main.js"></script>
+<script>App.login.init();</script>
+</body>
+</html>

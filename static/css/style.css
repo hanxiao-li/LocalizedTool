@@ -1,0 +1,210 @@
+/* LocalizedTool - clean, dependency-free stylesheet */
+
+:root {
+  --bg: #f3f5f9;
+  --panel: #ffffff;
+  --border: #e2e6ee;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --accent: #059669;
+  --danger: #dc2626;
+  --warn-bg: #fef3c7;
+  --warn-text: #92400e;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+/* `hidden` 属性必须始终优先于任何 display 声明（作者样式会覆盖 UA 的
+   [hidden]{display:none}，导致弹窗/面板即使加了 hidden 仍显示）。 */
+[hidden] { display: none !important; }
+body {
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* ── Topbar ── */
+.topbar {
+  display: flex; align-items: center; gap: 16px;
+  background: #111827; color: #fff;
+  padding: 10px 20px;
+  position: sticky; top: 0; z-index: 50;
+}
+.brand { font-size: 17px; font-weight: 700; }
+.topbar-center { display: flex; align-items: center; gap: 8px; margin: 0 auto; }
+.topbar-label { color: #9ca3af; font-size: 13px; }
+.topbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.user-badge { color: #e5e7eb; font-size: 13px; }
+
+/* ── Tabs ── */
+.tabs {
+  display: flex; gap: 4px;
+  background: #fff; border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+}
+.tab {
+  border: none; background: none; cursor: pointer;
+  padding: 12px 18px; font-size: 14px; color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+.tab:hover { color: var(--primary); }
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+.container { max-width: 1280px; margin: 20px auto; padding: 0 20px; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Cards ── */
+.card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  margin-bottom: 16px; overflow: hidden;
+}
+.card-head {
+  padding: 12px 16px; font-weight: 600; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.card-body { padding: 16px; }
+
+/* ── Layout helpers ── */
+.row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.col { flex: 1; min-width: 180px; }
+.col-auto { flex: 0 0 auto; }
+.spacer { flex: 1; }
+.muted { color: var(--muted); font-size: 12px; margin: 4px 0; }
+.lbl { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
+.section-title { font-size: 14px; margin: 16px 0 8px; color: #374151; }
+.banner-warn {
+  background: var(--warn-bg); color: var(--warn-text);
+  border-radius: var(--radius); display: flex; align-items: center; gap: 10px;
+}
+.banner-warn .btn { margin-left: auto; }
+
+/* ── Form controls ── */
+.input, .select {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 13px; background: #fff; color: var(--text);
+}
+.input:focus, .select:focus { outline: 2px solid var(--primary); border-color: transparent; }
+input[type=file].input { padding: 6px 8px; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 12px; }
+.chk { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer; }
+.chk-group { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 0; }
+
+/* ── Buttons ── */
+.btn {
+  border: none; border-radius: 6px; padding: 8px 14px; cursor: pointer;
+  font-size: 13px; display: inline-flex; align-items: center; gap: 4px;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-accent { background: var(--accent); color: #fff; }
+.btn-accent:hover { filter: brightness(1.08); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-block { width: 100%; justify-content: center; padding: 11px; }
+
+/* ── Progress ── */
+.progress-wrap { margin: 14px 0; }
+.progress {
+  height: 22px; background: #e5e7eb; border-radius: 999px; overflow: hidden;
+}
+.bar {
+  height: 100%; background: linear-gradient(90deg, #2563eb, #3b82f6);
+  color: #fff; font-size: 12px; display: flex; align-items: center;
+  justify-content: center; border-radius: 999px; transition: width .3s;
+  min-width: 40px; white-space: nowrap;
+}
+.progress-phase { margin-top: 6px; font-size: 12px; color: var(--muted); }
+
+/* ── Tables ── */
+.table-wrap { overflow: auto; max-height: 420px; border: 1px solid var(--border); border-radius: 8px; }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th {
+  position: sticky; top: 0; background: #f9fafb; text-align: left;
+  padding: 8px 10px; border-bottom: 1px solid var(--border); font-weight: 600; z-index: 1;
+}
+.table td { padding: 7px 10px; border-bottom: 1px solid #f0f2f7; vertical-align: top; }
+.table tr:hover td { background: #f8faff; }
+.badge {
+  background: var(--primary); color: #fff; border-radius: 999px;
+  padding: 1px 9px; font-size: 12px;
+}
+.sev-error { color: var(--danger); font-weight: 600; }
+.sev-warning { color: #d97706; font-weight: 600; }
+.sev-info { color: var(--primary); }
+
+/* ── Modal ── */
+.modal-mask {
+  position: fixed; inset: 0; background: rgba(17,24,39,.5);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 6vh 16px; z-index: 100; overflow: auto;
+}
+.modal {
+  background: #fff; border-radius: 12px; width: 560px; max-width: 100%;
+  box-shadow: 0 20px 50px rgba(0,0,0,.25);
+}
+.modal-lg { width: 960px; }
+.modal-sm { width: 420px; }
+.modal-head {
+  padding: 14px 18px; font-weight: 600; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-body { padding: 18px; }
+.modal-close {
+  background: none; border: none; font-size: 22px; cursor: pointer;
+  color: var(--muted); line-height: 1;
+}
+.modal-close:hover { color: var(--text); }
+
+/* ── Inline tabs (settings) ── */
+.tabs-inline { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+.tab-inline {
+  border: none; background: none; padding: 8px 14px; cursor: pointer;
+  color: var(--muted); border-bottom: 2px solid transparent; font-size: 13px;
+}
+.tab-inline.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.admin-block { margin-bottom: 18px; }
+
+.confirm-danger {
+  background: #fee2e2; border: 1px solid #fecaca; color: #991b1b;
+  border-radius: 8px; padding: 12px 14px; font-size: 13px; line-height: 1.6;
+}
+
+/* ── Login ── */
+.login-body {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #1e3a8a, #312e81);
+}
+.login-card {
+  background: #fff; border-radius: 14px; padding: 34px 38px;
+  width: 380px; max-width: 92vw; box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+.login-brand { font-size: 24px; font-weight: 700; text-align: center; }
+.login-sub { text-align: center; color: var(--muted); font-size: 13px; margin: 6px 0 22px; }
+.login-form .field { margin-bottom: 14px; }
+.login-error {
+  color: var(--danger); background: #fee2e2; border-radius: 6px;
+  padding: 8px 12px; margin-bottom: 12px; font-size: 13px;
+}
+.login-hint { text-align: center; color: var(--muted); font-size: 12px; margin-top: 16px; }
+
+/* ── 醒目缺列提示 & 术语库比对 ── */
+.banner-strong { display: block; padding: 10px 12px; font-weight: 600; }
+.ok { color: #059669; }
+.warn { color: #dc2626; font-weight: 600; }
+.glossary-diff { margin: 10px 0; font-size: 13px; max-height: 260px; overflow: auto; background: #f9fafb; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
+.glossary-diff .diff-line { padding: 3px 0; border-bottom: 1px dashed var(--border); word-break: break-all; }
+.glossary-diff .diff-line:last-child { border-bottom: none; }
+.glossary-diff .diff-add { color: #059669; }
+.glossary-diff .diff-del { color: #dc2626; }
+.glossary-diff .diff-mod { color: #b45309; }
