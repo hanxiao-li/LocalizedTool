@@ -29,8 +29,8 @@ from llm import chat_json, LLMError
 
 logger = logging.getLogger(__name__)
 
-# 单批请求的行数与字符数上限：批次越大，deepseek-v4-flash 越容易漏译/返回空。
-# 适度调小以保可靠性（短文本仍可一语种一批；大文件自动拆多批，并发 8 分摊）。
+# 单批请求的行数与字符数上限（当前为逐行翻译，不按行数分批，此项保留备用于
+# _split_batches；如需小批次可调小，但逐行最可靠）。
 MAX_BATCH_ROWS = 50
 MAX_BATCH_CHARS = 8000
 # 单条源文本送入模型前的最大长度
@@ -256,7 +256,7 @@ ROW_SYSTEM_PROMPT = (
     '2. 必须原样保留所有代码、占位符、标签、转义符（如 {0}、%s、<color=#fff>、\\n 等），'
     '一个都不能少，也不得多出。\n'
     '3. 源文本中若有用 ⟦术语⟧ 标注的受控术语：请正常翻译其内容（译文不要包含 ⟦⟧），'
-    '并尽量在每项输出的 terms 字段报告其译文；没有标注术语时 terms 可为空对象。\n'
+    '并在每项输出的 terms 字段报告其译文；没有标注术语时 terms 可为空对象。\n'
     '4. 只输出 JSON 数组，每项为 {"id": 序号, "translation": "译文", '
     '"terms": {"术语": "其译文"}}，不要输出其他内容。'
 )
@@ -313,15 +313,23 @@ _STRIP_TERM = re.compile(
 def _mark_terms(text: str, gloss_terms) -> tuple[str, list[str]]:
     """把源文中的术语包上 ⟦⟧ 标注（按长度降序，避免 废土旧物市场 被 废土 抢先）。
 
-    返回 (标注后文本, 命中的术语列表)。标注≠遮蔽：术语原文仍可见，模型整句
-    正常翻译，术语留在语境里，流畅度/语序不受影响。
+    大小写不敏感（英文列里 camp 也能匹配库键 Camp）；纯 ASCII 字母术语加词边界，
+    避免误标到更长单词内部（如 camp 不标进 campaign）。返回 (标注后文本, 命中列表)。
     """
     if not gloss_terms or not text:
         return text, []
     terms = sorted((t for t in gloss_terms if t), key=len, reverse=True)
     if not terms:
         return text, []
-    pattern = re.compile('|'.join(re.escape(t) for t in terms))
+
+    def _pat(term):
+        p = re.escape(term)
+        if term.isascii() and term.isalpha():
+            # 词边界 + 兼容复数（camp 能匹配 camps，但不误匹配 campaign/camping）
+            return rf'\b{p}(?=s?\b)'
+        return p
+
+    pattern = re.compile('|'.join(_pat(t) for t in terms), re.IGNORECASE)
     found = []
 
     def _repl(m):
@@ -361,16 +369,31 @@ def _safe_term_replacement(source: str, translation: str, glossary: dict,
     """
     if not glossary or not source or not translation or placeholders:
         return None
-    stripped = _STRIP_TERM.sub('', source)
+    stripped = _STRIP_TERM.sub('', source).lower()
     if not stripped:
         return None
     trans_l = translation.lower()
     for term, tgt in glossary.items():
         if not term or not tgt:
             continue
-        if stripped == term.strip() and tgt.lower() not in trans_l:
+        if stripped == term.strip().lower() and tgt.lower() not in trans_l:
             return tgt
     return None
+
+
+def _reported_rendering(reported: dict, term: str) -> str:
+    """从模型自报 terms 里取某术语的渲染（大小写不敏感，兼容 ⟦⟧ 前缀）。
+
+    模型可能用小写键（如 "camp"）而非库键 "Camp"，也可能带 ⟦⟧（如 "⟦Camp⟧"）。
+    """
+    if not reported:
+        return ''
+    t = term.lower()
+    for key, val in reported.items():
+        k = str(key).lower().strip('⟦⟧')
+        if k == t or k == t + 's':   # 兼容复数（模型可能报 "camps" 对应库键 "Camp"）
+            return val
+    return ''
 
 
 def _apply_term_consistency(out: dict, terms_map: dict, items: list[dict],
@@ -388,12 +411,13 @@ def _apply_term_consistency(out: dict, terms_map: dict, items: list[dict],
             continue
         reported = terms_map.get(it['id']) or {}
         new_trans = trans
+        text_l = it['text'].lower()
         for term, agreed in gloss_dict.items():
-            if not term or not agreed or term not in it['text']:
+            if not term or not agreed or term.lower() not in text_l:
                 continue
             if agreed.lower() in new_trans.lower():
                 continue                      # 已一致，无需动
-            rendering = reported.get(term) or reported.get(f'⟦{term}⟧') or ''
+            rendering = _reported_rendering(reported, term)
             if rendering:
                 new_trans = _replace_rendering(new_trans, rendering, agreed)
         out[it['id']] = new_trans
@@ -404,8 +428,9 @@ def _term_missing(it: dict, gloss_dict: dict, out: dict) -> list[tuple]:
     if not gloss_dict:
         return []
     trans = (out.get(it['id']) or out.get(str(it['id'])) or '').lower()
+    text_l = it['text'].lower()
     return [(t, g) for t, g in gloss_dict.items()
-            if t and g and t in it['text'] and g.lower() not in trans]
+            if t and g and t.lower() in text_l and g.lower() not in trans]
 
 
 def _chat_batch(llm_cfg: dict, items: list[dict], src_lang: str, tgt_lang: str,
@@ -580,11 +605,11 @@ def _run_batch_wave(batches: list[tuple], glossaries: dict, out_df: pd.DataFrame
                 done[0] += 1
                 task.update({
                     'progress': round(done[0] / total * 100, 1),
-                    'phase': f'正在翻译「{lang}」（第 {bi}/{total} 行）...',
+                    'phase': f'正在翻译「{lang}」：已完成 {done[0]}/{total} 批',
                 })
         except Exception as e:
             with lock:
-                errors.append(f'翻译失败（{lang}，第 {bi}/{total} 行）: {e}')
+                errors.append(f'翻译失败（{lang}，第 {bi}/{total} 批）: {e}')
 
     with ThreadPoolExecutor(max_workers=MAX_CONCURRENCY) as ex:
         futures = [ex.submit(work, (bi, batch))
@@ -624,7 +649,7 @@ def run_translation(task: dict, project_id: int, project: dict, filepath: str,
         glossaries[t['lang']] = build_glossary_map(
             project_id, t['lang'], glossary_source_key(project, t.get('source_lang')))
 
-    # 逐行翻译：每行一个请求（不做批次）——模型对稍大批次易漏译/空返回，
+    # 逐行翻译：每行一个请求（不做批次）——模型对稍大批次会漏译/空返回/卡死，
     # 单行请求最可靠；并发 8 + zh/en 两波分摊。
     def _build_batches(targets, from_df):
         out = []
